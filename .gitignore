@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment variables and secrets
+.env
+.env.*
+
+# PyCharm
+.idea/
+
+# Pytest
+.pytest_cache/
+
+# Django local database
+db.sqlite3
+*.sqlite3-journal
+
+# Generated reports and test artifacts
+reports/
+allure-results/
+allure-report/
+test-results/
+
+# Logs and generated Locust output
+*.log
+django_resource_log.csv
+locust_report.html
+*_stats.csv
+*_stats_history.csv
+*_failures.csv
+*_exceptions.csv
