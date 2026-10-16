@@ -1,0 +1,137 @@
+
+To find PId's
+
+Get-CimInstance Win32_Process -Filter "Name = 'python.exe'" | Select-Object ProcessId, CommandLine
+
+
+To find PID's that are listening to the port 8000
+
+ Get-NetTCPConnection -LocalPort 8000 -State Listen |
+>> Select-Object LocalAddress, LocalPort, OwningProcess
+
+
+
+
+
+
+$processId =  29596
+$logFile = "$env:USERPROFILE\Desktop\django_resource_log_$(Get-Date -Format 'yyyyMMdd_HHmmss').csv"
+
+"Timestamp,CPU_Seconds,WorkingSet_MB,PrivateMemory_MB" |
+    Set-Content $logFile
+
+Write-Host "Logger started at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+Write-Host "Monitoring PID: $processId"
+Write-Host "CSV file: $logFile"
+Write-Host "Press Ctrl+C to stop logging."
+Write-Host ""
+
+while ($true) {
+    $p = Get-Process -Id $processId -ErrorAction SilentlyContinue
+
+    if ($null -eq $p) {
+        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        Write-Host "$timestamp | STOPPED: PID $processId no longer exists."
+        break
+    }
+
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $cpu = $p.CPU
+    $workingSet = [math]::Round($p.WorkingSet64 / 1MB, 2)
+    $privateMemory = [math]::Round($p.PrivateMemorySize64 / 1MB, 2)
+
+    "$timestamp,$cpu,$workingSet,$privateMemory" |
+        Add-Content $logFile
+
+    Write-Host "$timestamp | CPU: $cpu sec | RAM: $workingSet MB | Private: $privateMemory MB"
+
+    Start-Sleep -Seconds 5
+}
+
+
+
+
+Started log to capture:11:33:58
+Started load test: 11:35:33
+Stopped load test: 11:38:19
+Stopped logged: 11:39:30
+
+
+Check your logical processor count: 20
+
+
+
+```powershell
+$processId = 29032
+
+$logFile = "$env:USERPROFILE\Desktop\django_resource_log_$(Get-Date -Format 'yyyyMMdd_HHmmss').csv"
+$errorFile = "$env:USERPROFILE\Desktop\django_resource_errors_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt"
+
+"Timestamp,CPU_Seconds,WorkingSet_MB,PrivateMemory_MB" |
+    Set-Content -LiteralPath $logFile -Encoding utf8
+
+Write-Host "Logger started at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+Write-Host "Monitoring PID: $processId"
+Write-Host "CSV file: $logFile"
+Write-Host "Error log: $errorFile"
+Write-Host "Press Ctrl+C to stop logging."
+Write-Host ""
+
+$encoding = New-Object System.Text.UTF8Encoding($false)
+
+while ($true) {
+    try {
+        $p = Get-Process -Id $processId -ErrorAction Stop
+
+        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        $cpu = $p.CPU
+        $workingSet = [math]::Round($p.WorkingSet64 / 1MB, 2)
+        $privateMemory = [math]::Round($p.PrivateMemorySize64 / 1MB, 2)
+
+        $line = "$timestamp,$cpu,$workingSet,$privateMemory"
+
+        $written = $false
+
+        for ($attempt = 1; $attempt -le 3; $attempt++) {
+            try {
+                [System.IO.File]::AppendAllText(
+                    $logFile,
+                    $line + [Environment]::NewLine,
+                    $encoding
+                )
+
+                $written = $true
+                break
+            }
+            catch {
+                if ($attempt -lt 3) {
+                    Start-Sleep -Seconds 1
+                }
+                else {
+                    $errorTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+                    "$errorTimestamp | CSV WRITE FAILED | $($_.Exception.Message)" |
+                        Out-File -FilePath $errorFile -Append -Encoding utf8
+
+                    Write-Host "WARNING: Failed to write sample after 3 attempts."
+                }
+            }
+        }
+
+        if ($written) {
+            Write-Host "$timestamp | CPU: $cpu sec | RAM: $workingSet MB | Private: $privateMemory MB"
+        }
+
+        Start-Sleep -Seconds 5
+    }
+    catch {
+        $errorTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        "$errorTimestamp | PROCESS/MONITOR ERROR | $($_.Exception.Message)" |
+            Out-File -FilePath $errorFile -Append -Encoding utf8
+
+        Write-Host "$errorTimestamp | Monitoring error: $($_.Exception.Message)"
+        Start-Sleep -Seconds 5
+    }
+}
+```
+
+
